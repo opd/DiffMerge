@@ -5,8 +5,19 @@ import pytest
 
 from diffmerge import reverse_diff, swap_keys, Puppet, merge
 
-# TODO
-DIFF_CHANGES = (
+
+class Compare:
+    def __init__(self, func):
+        self._func = func
+
+    def __eq__(self, other):
+        try:
+            return self._func(other)
+        except BaseException:
+            return False
+
+
+DIFF_CHAINS = (
     (
         [1, 2, 3],
         [1, -2, 3],
@@ -24,7 +35,6 @@ DIFF_CHANGES = (
     ),
 )
 
-# TODO rename
 DIFF_PAIRS = (
     # array
     ([1, 3], [1, 2, 3]),
@@ -45,7 +55,7 @@ DIFF_PAIRS = (
 )
 
 pairs = [
-    (x, y) for chain in DIFF_CHANGES for x, y in zip(chain, chain[1:])
+    (x, y) for chain in DIFF_CHAINS for x, y in zip(chain, chain[1:])
 ]
 DIFF_PAIRS = DIFF_PAIRS + tuple(pairs)
 
@@ -53,9 +63,6 @@ DIFF_PAIRS = DIFF_PAIRS + tuple(pairs)
 def diff_func(t1, t2):
     return DeepDiff(t1, t2, verbose_level=2)
 
-# Dont' work with diff reverse. Can't apply diff correctly
-# def diff_func_repetition(t1, t2):
-#     return DeepDiff(t1, t2, verbose_level=2, ignore_order=True, report_repetition=True)
 
 @pytest.mark.parametrize('pair', DIFF_PAIRS)
 @pytest.mark.parametrize('rev', [True, False])
@@ -69,14 +76,12 @@ def test_diff_reverse(pair, rev):
     assert pair[1] + delta == pair[0]
 
 
-# utils
 def test_diff_reverse_temp():
     plain = {'values_changed': {'root[1]': {'new_value': 3, 'old_value': 2}}, 'iterable_item_removed': {'root[2]': 3}}
     rev = {'values_changed': {'root[1]': {'new_value': 2, 'old_value': 3}}, 'iterable_item_added': {'root[2]': 3}}
     assert reverse_diff(plain) == rev
 
 
-# utils
 def test_swap_keys():
     old = {'x': 1, 'y': 2}
     new = {'x': 2, 'y': 1}
@@ -87,17 +92,6 @@ def drop_puppet(items):
     return {
         key: value for key, value in items.items() if not isinstance(value, Puppet)
     }
-
-# TODO move to helpers
-class Compare:
-    def __init__(self, func):
-        self._func = func
-
-    def __eq__(self, other):
-        try:
-            return self._func(other)
-        except BaseException:
-            return False
 
 def test_compare():
     c = Compare(lambda x: isinstance(x, str))
@@ -183,7 +177,7 @@ def test_apply(pair, rev):
     result_diff = diff_func(initial_dict, end_dict)
     assert result_diff == diff
 
-@pytest.mark.parametrize('chain', DIFF_CHANGES)
+@pytest.mark.parametrize('chain', DIFF_CHAINS)
 @pytest.mark.parametrize('rev', [False, True])
 def test_merge_diffs(chain, rev):
     if rev:
